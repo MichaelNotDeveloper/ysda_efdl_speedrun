@@ -4,6 +4,23 @@ from torch import nn
 from tqdm.auto import tqdm
 from unet import Unet
 
+# учитвыая задачу мы не хотим домножать на конастану после N успешных прогонов
+# Поэтому прийдется делать это жадно
+
+
+class LossScaler:
+    def __init__(self):
+        pass
+
+    def scale(self, loss):
+        pass
+
+    def step(self, optimizer):
+        pass
+
+    def update(self):
+        pass
+
 
 def train_epoch(
     train_loader: torch.utils.data.DataLoader,
@@ -11,6 +28,7 @@ def train_epoch(
     criterion: torch.nn.modules.loss._Loss,
     optimizer: torch.optim.Optimizer,
     device: torch.device,
+    scaler: LossScaler,
 ) -> None:
     model.train()
 
@@ -23,8 +41,9 @@ def train_epoch(
             outputs = model(images)
             loss = criterion(outputs, labels)
 
-        loss.backward()
-        # TODO: your code for loss scaling here
+        scaler.scale(loss).backward()
+        scaler.step(optimizer)
+        scaler.update()
 
         accuracy = ((outputs > 0.5) == labels).float().mean()
 
@@ -33,7 +52,7 @@ def train_epoch(
         )
 
 
-def train():
+def train(scaler: LossScaler):
     device = torch.device("cuda:0")
     model = Unet().to(device)
     criterion = nn.BCEWithLogitsLoss()
@@ -43,8 +62,6 @@ def train():
 
     num_epochs = 5
     for epoch in range(0, num_epochs):
-        train_epoch(train_loader, model, criterion, optimizer, device=device)
-
-
-if __name__ == "__main__":
-    train()
+        train_epoch(
+            train_loader, model, criterion, optimizer, device=device, scaler=scaler
+        )
