@@ -4,22 +4,61 @@ from torch import nn
 from tqdm.auto import tqdm
 from unet import Unet
 
-# учитвыая задачу мы не хотим домножать на конастану после N успешных прогонов
-# Поэтому прийдется делать это жадно
-
 
 class LossScaler:
-    def __init__(self):
-        pass
+    MAX_VALUE = 65504
 
-    def scale(self, loss):
-        pass
+    def __init__(
+        self,
+        scaler_type: str | None = None,
+        interval: float = 0.2,
+        window: int = 5,
+        scaling_mult: float = 1.1,
+    ):
+        self.scaler_type = scaler_type
+        if scaler_type is None:
+            self.scaling_factor = 1.0
+        elif scaler_type in ["static", "dynamic"]:
+            self.scaling_factor = self.MAX_VALUE / interval
+        else:
+            raise ValueError("No such scaler type dumbass")
+        self.window = window
+        self.scaling_counter = 0
+        self.scaling_mult = scaling_mult
+        self.unstable_scaling = False
 
+    def scale(self, loss: torch.Tensor) -> torch.Tensor:
+        return loss.mul(self.scaling_factor)
+
+    @torch.no_grad()
     def step(self, optimizer):
-        pass
+        max_stat = 0.0
+        for group in optimizer.param_groups:
+            for p in group["params"]:
+                if p.grad is not None:
+                    grad = p.grad
+                    if not torch.isfinite(grad).all():
+                        self.unstable_scaling = True
+                        print("Inf in grad!")
+                        return
+                    grad.mul_(self.scaling_factor**-1)
+                    if self.scaler_type == "dynamic":
+                        max_stat = max(max_stat, grad.abs().max().item())
+        if not self.unstable_scaling:
+            optimizer.step()
 
     def update(self):
-        pass
+        if self.unstable_scaling:
+            self.unstable_scaling = False
+            self.scaling_factor /= self.scaling_mult
+            self.scaling_counter = 0
+            return
+        if self.scaler_type != "dynamic":
+            return
+        self.scaling_counter += 1
+        if self.scaling_counter == self.window:
+            self.scaling_factor *= self.scaling_mult
+            self.scaling_counter = 0
 
 
 def train_epoch(
@@ -44,6 +83,7 @@ def train_epoch(
         scaler.scale(loss).backward()
         scaler.step(optimizer)
         scaler.update()
+        optimizer.zero_grad()
 
         accuracy = ((outputs > 0.5) == labels).float().mean()
 
