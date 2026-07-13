@@ -21,7 +21,7 @@ def get_device() -> torch.device:
 
 
 class Settings:
-    batch_size: int = 256
+    batch_size: int = 128
     epochs: int = 2
     lr: float = 3e-5
     gamma: float = 0.7
@@ -31,8 +31,8 @@ class Settings:
 
 
 class Clothes:
-    directory = "data"
-    train_val_img_dir = "train"
+    directory = "clothing-dataset"
+    train_val_img_dir = "images"
     csv_name = "images.csv"
     archive_name = "images_original"
 

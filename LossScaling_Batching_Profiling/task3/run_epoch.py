@@ -1,15 +1,13 @@
 import typing as tp
 
+import dataset
+import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import dataset
-import pandas as pd
-
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-
-from utils import Settings, Clothes, seed_everything
+from utils import Clothes, Settings, seed_everything
 from vit import ViT
 
 
@@ -35,22 +33,32 @@ def get_loaders() -> torch.utils.data.DataLoader:
     val_frame = frame.drop(train_frame.index)
 
     train_data = dataset.ClothesDataset(
-        f"{Clothes.directory}/{Clothes.train_val_img_dir}", train_frame, transform=train_transforms
+        f"{Clothes.directory}/{Clothes.train_val_img_dir}",
+        train_frame,
+        transform=train_transforms,
     )
     val_data = dataset.ClothesDataset(
-        f"{Clothes.directory}/{Clothes.train_val_img_dir}", val_frame, transform=val_transforms
+        f"{Clothes.directory}/{Clothes.train_val_img_dir}",
+        val_frame,
+        transform=val_transforms,
     )
 
     print(f"Train Data: {len(train_data)}")
     print(f"Val Data: {len(val_data)}")
 
-    train_loader = DataLoader(dataset=train_data, batch_size=Settings.batch_size, shuffle=True)
-    val_loader = DataLoader(dataset=val_data, batch_size=Settings.batch_size, shuffle=False)
+    train_loader = DataLoader(
+        dataset=train_data, batch_size=Settings.batch_size, shuffle=True
+    )
+    val_loader = DataLoader(
+        dataset=val_data, batch_size=Settings.batch_size, shuffle=False
+    )
 
     return train_loader, val_loader
 
 
-def run_epoch(model, train_loader, val_loader, criterion, optimizer) -> tp.Tuple[float, float]:
+def run_epoch(
+    model, train_loader, val_loader, criterion, optimizer
+) -> tp.Tuple[float, float]:
     epoch_loss, epoch_accuracy = 0, 0
     val_loss, val_accuracy = 0, 0
     model.train()
@@ -60,8 +68,8 @@ def run_epoch(model, train_loader, val_loader, criterion, optimizer) -> tp.Tuple
         output = model(data)
         loss = criterion(output, label)
         acc = (output.argmax(dim=1) == label).float().mean()
-        epoch_accuracy += acc.item() / len(train_loader)
-        epoch_loss += loss.item() / len(train_loader)
+        epoch_accuracy += acc.item() / len(train_loader)  # slower
+        epoch_loss += loss.item() / len(train_loader)  # slower
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()

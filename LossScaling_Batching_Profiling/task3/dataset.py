@@ -1,13 +1,21 @@
 import os
 import typing as tp
 import zipfile
-import gdown
 
+import gdown
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
-
 from utils import Clothes, get_labels_dict
+
+# TODO - PIL -> convert to
+# import skimage
+# def skimage(self, image_path: str) -> np.array:
+#    return skimage.io.imread(image_path)
+#
+
+
+# TODO : pandas2polars???
 
 
 class ClothesDataset(Dataset):
@@ -16,6 +24,11 @@ class ClothesDataset(Dataset):
         self.transform = transform
         self.frame = frame.set_index("image")
         self.img_list = list(self.frame.index.values)
+
+        img_name = self.img_list[0]
+        self.dummy_image = Image.open(f"{self.folder_path}/{img_name}.jpg").convert(
+            "RGB"
+        )
 
         self.label2ix = get_labels_dict()
 
@@ -44,7 +57,9 @@ def download_extract_dataset():
         "https://drive.google.com/uc?id=1rk8CFX-0MdezDue_dSl6pGHzAtFrJefm",
         output=f"{Clothes.directory}/{Clothes.csv_name}",
     )
-    with zipfile.ZipFile(f"{Clothes.directory}/{Clothes.archive_name}.zip") as train_zip:
+    with zipfile.ZipFile(
+        f"{Clothes.directory}/{Clothes.archive_name}.zip"
+    ) as train_zip:
         train_zip.extractall(f"{Clothes.directory}/{Clothes.train_val_img_dir}")
 
 

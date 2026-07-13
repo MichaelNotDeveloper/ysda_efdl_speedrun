@@ -7,17 +7,10 @@ from unet import Unet
 
 class LossScaler:
     MAX_VALUE = 65504
-
-    def __init__(
-        self,
-        scaler_type: str | None = None,
-        interval: float = 0.2,
-        window: int = 5,
-        scaling_mult: float = 1.1,
-    ):
+    def __init__(self, scaler_type : str | None = None, interval : float = 0.2, window : int = 5, scaling_mult: float = 1.1):
         self.scaler_type = scaler_type
         if scaler_type is None:
-            self.scaling_factor = 1.0
+            self.scaling_factor = 1.
         elif scaler_type in ["static", "dynamic"]:
             self.scaling_factor = self.MAX_VALUE / interval
         else:
@@ -27,26 +20,25 @@ class LossScaler:
         self.scaling_mult = scaling_mult
         self.unstable_scaling = False
 
-    def scale(self, loss: torch.Tensor) -> torch.Tensor:
+    def scale(self, loss : torch.Tensor) -> torch.Tensor:
         return loss.mul(self.scaling_factor)
-
     @torch.no_grad()
     def step(self, optimizer):
-        max_stat = 0.0
+        max_stat = 0.
         for group in optimizer.param_groups:
-            for p in group["params"]:
+            for p in group['params']:
                 if p.grad is not None:
                     grad = p.grad
                     if not torch.isfinite(grad).all():
                         self.unstable_scaling = True
                         print("Inf in grad!")
                         return
-                    grad.mul_(self.scaling_factor**-1)
+                    grad.mul_(self.scaling_factor ** -1)
                     if self.scaler_type == "dynamic":
                         max_stat = max(max_stat, grad.abs().max().item())
         if not self.unstable_scaling:
             optimizer.step()
-
+                    
     def update(self):
         if self.unstable_scaling:
             self.unstable_scaling = False
@@ -59,6 +51,7 @@ class LossScaler:
         if self.scaling_counter == self.window:
             self.scaling_factor *= self.scaling_mult
             self.scaling_counter = 0
+            
 
 
 def train_epoch(
